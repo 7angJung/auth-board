@@ -1,6 +1,8 @@
 package com.jupeter.authboard.domain.user.api;
 
 import com.jupeter.authboard.domain.user.application.UserService;
+import com.jupeter.authboard.domain.user.dto.UserLoginRequest;
+import com.jupeter.authboard.domain.user.dto.UserLoginResponse;
 import com.jupeter.authboard.domain.user.dto.UserSignupRequest;
 import com.jupeter.authboard.domain.user.dto.UserSignupResponse;
 import jakarta.validation.Valid;
@@ -21,5 +23,10 @@ public class UserController {
     @ResponseStatus(HttpStatus.CREATED)
     public UserSignupResponse signup(@Valid @RequestBody UserSignupRequest request) {
         return userService.signup(request);
+    }
+
+    @PostMapping("/login")
+    public UserLoginResponse login(@Valid @RequestBody UserLoginRequest request) {
+        return userService.login(request);
     }
 }

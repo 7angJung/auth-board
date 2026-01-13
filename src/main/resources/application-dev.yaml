@@ -22,3 +22,7 @@ logging:
   level:
     org.hibernate.SQL: DEBUG
     org.hibernate.orm.jdbc.bind: TRACE
+
+jwt:
+  secret: "dev-secret-key-change-this-please-dev-secret-key-change-this"
+  access-token-exp-minutes: 60
