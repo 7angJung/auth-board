@@ -14,6 +14,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import com.jupeter.authboard.domain.board.repository.BoardRepository;
+import com.jupeter.authboard.domain.board.domain.Board;
+import com.jupeter.authboard.domain.board.dto.BoardUpdateRequest;
+import org.springframework.http.HttpMethod;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -27,6 +35,7 @@ class BoardApiIntegrationTest {
     @Autowired private UserRepository userRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtTokenProvider jwtTokenProvider;
+    @Autowired private BoardRepository boardRepository;
 
     @Test
     @DisplayName("토큰 없이 게시글 작성 요청하면 401")
@@ -65,4 +74,79 @@ class BoardApiIntegrationTest {
         mockMvc.perform(get("/api/boards"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @DisplayName("토큰 없이 게시글 수정 요청하면 401")
+    void update_withoutToken_401() throws Exception {
+        var req = new BoardUpdateRequest("수정제목", "수정내용");
+
+        mockMvc.perform(put("/api/boards/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("작성자 토큰으로 게시글 수정하면 200")
+    void update_asAuthor_200() throws Exception {
+        User author = userRepository.save(User.create("author2@test.com", passwordEncoder.encode("password1234")));
+        Board board = boardRepository.save(Board.create("기존제목", "기존내용", author));
+        String token = jwtTokenProvider.createAccessToken(author.getId(), author.getEmail(), author.getRole().name());
+
+        var req = new BoardUpdateRequest("수정제목", "수정내용");
+
+        mockMvc.perform(put("/api/boards/{id}", board.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("수정제목"))
+                .andExpect(jsonPath("$.content").value("수정내용"))
+                .andExpect(jsonPath("$.authorId").value(author.getId()));
+    }
+
+    @Test
+    @DisplayName("작성자가 아닌 토큰으로 게시글 수정하면 403")
+    void update_notAuthor_403() throws Exception {
+        User author = userRepository.save(User.create("author3@test.com", passwordEncoder.encode("password1234")));
+        Board board = boardRepository.save(Board.create("기존제목", "기존내용", author));
+
+        User other = userRepository.save(User.create("other@test.com", passwordEncoder.encode("password1234")));
+        String otherToken = jwtTokenProvider.createAccessToken(other.getId(), other.getEmail(), other.getRole().name());
+
+        var req = new BoardUpdateRequest("수정제목", "수정내용");
+
+        mockMvc.perform(put("/api/boards/{id}", board.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("작성자 토큰으로 게시글 삭제하면 204")
+    void delete_asAuthor_204() throws Exception {
+        User author = userRepository.save(User.create("author4@test.com", passwordEncoder.encode("password1234")));
+        Board board = boardRepository.save(Board.create("제목", "내용", author));
+        String token = jwtTokenProvider.createAccessToken(author.getId(), author.getEmail(), author.getRole().name());
+
+        mockMvc.perform(delete("/api/boards/{id}", board.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("작성자가 아닌 토큰으로 게시글 삭제하면 403")
+    void delete_notAuthor_403() throws Exception {
+        User author = userRepository.save(User.create("author5@test.com", passwordEncoder.encode("password1234")));
+        Board board = boardRepository.save(Board.create("제목", "내용", author));
+
+        User other = userRepository.save(User.create("other2@test.com", passwordEncoder.encode("password1234")));
+        String otherToken = jwtTokenProvider.createAccessToken(other.getId(), other.getEmail(), other.getRole().name());
+
+        mockMvc.perform(delete("/api/boards/{id}", board.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
+                .andExpect(status().isForbidden());
+    }
+
 }

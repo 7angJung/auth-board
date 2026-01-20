@@ -8,6 +8,8 @@ import com.jupeter.authboard.domain.board.repository.BoardRepository;
 import com.jupeter.authboard.domain.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.jupeter.authboard.domain.board.application.exception.BoardForbiddenException;
+import com.jupeter.authboard.domain.board.dto.BoardUpdateRequest;
 
 import java.util.List;
 
@@ -53,5 +55,27 @@ public class BoardService {
                 board.getAuthor().getId(),
                 board.getCreatedAt()
         );
+    }
+    public BoardResponse update(Long boardId, BoardUpdateRequest request, Long userId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BoardNotFoundException("게시글을 찾을 수 없습니다."));
+
+        if (!board.getAuthor().getId().equals(userId)) {
+            throw new BoardForbiddenException("작성자만 수정할 수 있습니다.");
+        }
+
+        board.update(request.title(), request.content());
+        return toResponse(board);
+    }
+
+    public void delete(Long boardId, Long userId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BoardNotFoundException("게시글을 찾을 수 없습니다."));
+
+        if (!board.getAuthor().getId().equals(userId)) {
+            throw new BoardForbiddenException("작성자만 삭제할 수 있습니다.");
+        }
+
+        boardRepository.delete(board);
     }
 }

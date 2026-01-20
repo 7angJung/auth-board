@@ -7,6 +7,7 @@ import com.jupeter.authboard.global.common.AuthUtils;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import com.jupeter.authboard.domain.board.dto.BoardUpdateRequest;
 
 import java.util.List;
 
@@ -35,5 +36,19 @@ public class BoardController {
     @GetMapping("/{id}")
     public BoardResponse findById(@PathVariable Long id) {
         return boardService.findById(id);
+    }
+
+    @PutMapping("/{id}")
+    public BoardResponse update(@PathVariable Long id,
+                                @Valid @RequestBody BoardUpdateRequest request) {
+        Long userId = AuthUtils.currentUserId();
+        return boardService.update(id, request, userId);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        Long userId = AuthUtils.currentUserId();
+        boardService.delete(id, userId);
     }
 }
